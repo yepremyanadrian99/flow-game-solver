@@ -21,8 +21,8 @@ public class GameMap {
     public void addInitialFlows(String color, Point p1, Point p2) {
         final var initialPoints = new InitialFlow(color, p1, p2);
         initialFlowList.add(initialPoints);
-        matrix[p1.y()][p1.x()] = new Flow(p1, color);
-        matrix[p2.y()][p2.x()] = new Flow(p2, color);
+        matrix[p1.y()][p1.x()] = new Flow(p1, color, null);
+        matrix[p2.y()][p2.x()] = new Flow(p2, color, null);
     }
 
     public void print(GameMapPrinter printer) {

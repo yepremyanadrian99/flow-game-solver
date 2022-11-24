@@ -7,9 +7,14 @@ public class DefaultGameMapPrinter implements GameMapPrinter {
 
     @Override
     public void print(GameMap map) {
-        for (Flow[] rows : map.getMatrix()) {
+        print(map.getMatrix());
+    }
+
+    @Override
+    public void print(Flow[][] matrix) {
+        for (Flow[] rows : matrix) {
             for (Flow cell : rows) {
-                System.out.print((cell == null ? "*" : cell.getColor()).charAt(0));
+                System.out.print((cell == null ? "*" : cell.color()).charAt(0));
                 System.out.print("  ");
             }
             System.out.println();

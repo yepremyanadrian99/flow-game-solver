@@ -15,10 +15,10 @@ public class Application {
         map.print(mapPrinter);
 
         final var solver = new Solver();
-        solver.solve(map);
+        final var solvedMatrix = solver.solve(map);
 
         System.out.println("Solution:");
-        map.print(mapPrinter);
+        mapPrinter.print(solvedMatrix);
     }
 
     private static GameMap mapExample5x5() {
