@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+    id 'application'
 }
 
 group 'am.adrianyepremyan'
@@ -16,6 +17,14 @@ dependencies {
     testCompileOnly 'org.projectlombok:lombok:1.18.24'
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+}
+
+ext {
+    javaMainClass = "am.adrianyepremyan.flowgamesolver.Application"
+}
+
+application {
+    mainClassName = javaMainClass
 }
 
 test {
