@@ -4,11 +4,19 @@ import am.adrianyepremyan.flowgamesolver.helper.Point;
 import am.adrianyepremyan.flowgamesolver.map.GameMap;
 import am.adrianyepremyan.flowgamesolver.map.printer.DefaultGameMapPrinter;
 import am.adrianyepremyan.flowgamesolver.solver.Solver;
+import java.util.function.Supplier;
 
 public class Application {
 
     public static void main(String[] args) {
-        final var map = mapExample8x8();
+        solveAndPrint(Application::mapExample5x5);
+        solveAndPrint(Application::mapExample7x7);
+        solveAndPrint(Application::mapExample8x8);
+//        solveAndPrint(Application::mapExample10x10);
+    }
+
+    private static void solveAndPrint(Supplier<GameMap> mapSupplier) {
+        final var map = mapSupplier.get();
 
         System.out.println("Game map is:");
         final var mapPrinter = new DefaultGameMapPrinter();

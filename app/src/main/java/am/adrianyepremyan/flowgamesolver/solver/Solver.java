@@ -14,8 +14,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 // TODO: Implement Reactivity to avoid blocking threads.
@@ -38,60 +37,37 @@ public class Solver {
         final int startX = initialFlow.p1().x();
         final int startY = initialFlow.p1().y();
 
-        final var future = solveRecursively(matrix, matrix[startY][startX], initialFlows, 0);
-        try {
-            final var solvedMatrix = future.get();
-            if (solvedMatrix == null) {
-                throw new RuntimeException("Game has no solution!");
-            }
-            return solvedMatrix;
-        } catch (InterruptedException | ExecutionException e) {
-            e.printStackTrace();
-            throw new RuntimeException("Unknown error handled");
-        }
+        final var solvedMatrix = solveRecursively(matrix, matrix[startY][startX], initialFlows, 0);
+        return Optional.ofNullable(solvedMatrix)
+            .orElseThrow(() -> new RuntimeException("Game has no solution!"));
     }
 
-    private CompletableFuture<Flow[][]> solveRecursively(Flow[][] matrix,
-                                                         Flow flow,
-                                                         List<InitialFlow> initialFlowList,
-                                                         int initialFlowIndex) {
+    private Flow[][] solveRecursively(Flow[][] matrix,
+                                      Flow flow,
+                                      List<InitialFlow> initialFlowList,
+                                      int initialFlowIndex) {
         final int startX = flow.point().x();
         final int startY = flow.point().y();
 
-        final var upFuture =
-            solveWithDirection(matrix, flow, initialFlowList, initialFlowIndex, startX, startY - 1, UP);
-        final var downFuture =
-            solveWithDirection(matrix, flow, initialFlowList, initialFlowIndex, startX, startY + 1, DOWN);
-        final var leftFuture =
-            solveWithDirection(matrix, flow, initialFlowList, initialFlowIndex, startX - 1, startY, LEFT);
-        final var rightFuture =
-            solveWithDirection(matrix, flow, initialFlowList, initialFlowIndex, startX + 1, startY, RIGHT);
-
-        return CompletableFuture.allOf(upFuture, downFuture, leftFuture, rightFuture)
-            .thenApplyAsync(unused -> {
-                try {
-                    final var upResult = upFuture.get();
-                    final var downResult = downFuture.get();
-                    final var leftResult = leftFuture.get();
-                    final var rightResult = rightFuture.get();
-                    final var result = Stream.of(upResult, downResult, leftResult, rightResult)
-                        .filter(Objects::nonNull)
-                        .findFirst()
-                        .orElse(null);
-                    System.out.println(Thread.currentThread().getName() + " : " + "All results complete: " + false);
-                    return result;
-                } catch (InterruptedException | ExecutionException e) {
-                    return false;
-                }
-            }).thenApply(Flow[][].class::cast);
+        final var result = Stream.of(
+                solveWithDirection(matrix, flow, initialFlowList, initialFlowIndex, startX, startY - 1, UP),
+                solveWithDirection(matrix, flow, initialFlowList, initialFlowIndex, startX, startY + 1, DOWN),
+                solveWithDirection(matrix, flow, initialFlowList, initialFlowIndex, startX - 1, startY, LEFT),
+                solveWithDirection(matrix, flow, initialFlowList, initialFlowIndex, startX + 1, startY, RIGHT)
+            )
+            .filter(Objects::nonNull)
+            .findFirst()
+            .orElse(null);
+//        System.out.println(Thread.currentThread().getName() + " : " + "All results complete: " + false);
+        return result;
     }
 
-    private CompletableFuture<Flow[][]> solveWithDirection(Flow[][] matrix,
-                                                           Flow currentFlow,
-                                                           List<InitialFlow> initialFlowList,
-                                                           int initialFlowIndex,
-                                                           int x, int y,
-                                                           FlowDirection directionToGo) {
+    private Flow[][] solveWithDirection(Flow[][] matrix,
+                                        Flow currentFlow,
+                                        List<InitialFlow> initialFlowList,
+                                        int initialFlowIndex,
+                                        int x, int y,
+                                        FlowDirection directionToGo) {
         final var initialFlow = initialFlowList.get(initialFlowIndex);
 
         // If the end of the initial flow is reached
@@ -100,7 +76,7 @@ public class Solver {
             // If the end of all initial flows is reached
             // The game is solved
             if (initialFlowIndex == initialFlowList.size() - 1) {
-                return CompletableFuture.completedFuture(matrix);
+                return matrix;
             }
             final var nextInitialFlow = initialFlowList.get(initialFlowIndex + 1);
             final var nextFlow = matrix[nextInitialFlow.p1().y()][nextInitialFlow.p1().x()];
@@ -116,18 +92,10 @@ public class Solver {
             final var insertedFlow = insertFlowWithDirection(tempMatrix, x, y, currentFlow.color(), directionToGo);
             if (insertedFlow != null) {
                 // Solve recursively with the new flow
-                return solveRecursively(tempMatrix, insertedFlow, initialFlowList, initialFlowIndex)
-                    .thenApplyAsync(result -> {
-                        if (result != null) {
-                            return result;
-                        }
-                        // Revert the step
-                        tempMatrix[y][x] = null;
-                        return null;
-                    });
+                return solveRecursively(tempMatrix, insertedFlow, initialFlowList, initialFlowIndex);
             }
         }
-        return CompletableFuture.completedFuture(null);
+        return null;
     }
 
     private Flow insertFlowWithDirection(Flow[][] matrix, int x, int y,
