@@ -13,13 +13,19 @@ import am.adrianyepremyan.flowgamesolver.map.domain.InitialFlow;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.stream.Stream;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 // TODO: Implement Reactivity to avoid blocking threads.
 public class Solver {
 
+    private static final Flow[][] NIL = new Flow[0][0];
+
+    private static Scheduler scheduler;
+
+    // TODO: Within a separate thread, print the initialFlowIndex with, e.g. 5 seconds delay.
     public Flow[][] solve(GameMap map) {
         final var matrix = map.getMatrix();
         final var initialFlows = new ArrayList<>(map.getInitialFlowList());
@@ -37,37 +43,55 @@ public class Solver {
         final int startX = initialFlow.p1().x();
         final int startY = initialFlow.p1().y();
 
-        final var solvedMatrix = solveRecursively(matrix, matrix[startY][startX], initialFlows, 0);
-        return Optional.ofNullable(solvedMatrix)
-            .orElseThrow(() -> new RuntimeException("Game has no solution!"));
+        scheduler = Schedulers.boundedElastic();
+        final var solvedMatrix = solveRecursively(matrix, matrix[startY][startX], initialFlows, 0)
+            .subscribeOn(scheduler)
+            .block();
+        scheduler.dispose();
+
+        if (solvedMatrix == NIL) {
+            throw new RuntimeException("Game has no solution!");
+        }
+
+        return solvedMatrix;
     }
 
-    private Flow[][] solveRecursively(Flow[][] matrix,
-                                      Flow flow,
-                                      List<InitialFlow> initialFlowList,
-                                      int initialFlowIndex) {
+    private Mono<Flow[][]> solveRecursively(Flow[][] matrix,
+                                            Flow flow,
+                                            List<InitialFlow> initialFlowList,
+                                            int initialFlowIndex) {
         final int startX = flow.point().x();
         final int startY = flow.point().y();
 
-        final var result = Stream.of(
+        return Mono.zip(
                 solveWithDirection(matrix, flow, initialFlowList, initialFlowIndex, startX, startY - 1, UP),
                 solveWithDirection(matrix, flow, initialFlowList, initialFlowIndex, startX, startY + 1, DOWN),
                 solveWithDirection(matrix, flow, initialFlowList, initialFlowIndex, startX - 1, startY, LEFT),
                 solveWithDirection(matrix, flow, initialFlowList, initialFlowIndex, startX + 1, startY, RIGHT)
             )
-            .filter(Objects::nonNull)
-            .findFirst()
-            .orElse(null);
-//        System.out.println(Thread.currentThread().getName() + " : " + "All results complete: " + false);
-        return result;
+            .map(tuple -> {
+                    final var result = Stream.of(
+                            tuple.getT1(),
+                            tuple.getT2(),
+                            tuple.getT3(),
+                            tuple.getT4()
+                        )
+                        .filter(currResult -> currResult != NIL)
+                        .findFirst()
+                        .orElse(NIL);
+//                    System.out.println(Thread.currentThread().getName()
+//                        + " : " + "All results complete: " + (result != NIL));
+                    return result;
+                }
+            );
     }
 
-    private Flow[][] solveWithDirection(Flow[][] matrix,
-                                        Flow currentFlow,
-                                        List<InitialFlow> initialFlowList,
-                                        int initialFlowIndex,
-                                        int x, int y,
-                                        FlowDirection directionToGo) {
+    private Mono<Flow[][]> solveWithDirection(Flow[][] matrix,
+                                              Flow currentFlow,
+                                              List<InitialFlow> initialFlowList,
+                                              int initialFlowIndex,
+                                              int x, int y,
+                                              FlowDirection directionToGo) {
         final var initialFlow = initialFlowList.get(initialFlowIndex);
 
         // If the end of the initial flow is reached
@@ -76,12 +100,15 @@ public class Solver {
             // If the end of all initial flows is reached
             // The game is solved
             if (initialFlowIndex == initialFlowList.size() - 1) {
-                return matrix;
+                return Mono.just(matrix);
             }
+
             final var nextInitialFlow = initialFlowList.get(initialFlowIndex + 1);
             final var nextFlow = matrix[nextInitialFlow.p1().y()][nextInitialFlow.p1().x()];
 
-            return solveRecursively(matrix, nextFlow, initialFlowList, initialFlowIndex + 1);
+            // Solve resursively for next colored flow
+            return solveRecursively(matrix, nextFlow, initialFlowList, initialFlowIndex + 1)
+                .subscribeOn(scheduler);
         }
 
         if ((currentFlow.direction() == null || directionToGo != currentFlow.direction().getOpposite())
@@ -92,10 +119,11 @@ public class Solver {
             final var insertedFlow = insertFlowWithDirection(tempMatrix, x, y, currentFlow.color(), directionToGo);
             if (insertedFlow != null) {
                 // Solve recursively with the new flow
-                return solveRecursively(tempMatrix, insertedFlow, initialFlowList, initialFlowIndex);
+                return solveRecursively(tempMatrix, insertedFlow, initialFlowList, initialFlowIndex)
+                    .subscribeOn(scheduler);
             }
         }
-        return null;
+        return Mono.just(NIL);
     }
 
     private Flow insertFlowWithDirection(Flow[][] matrix, int x, int y,
