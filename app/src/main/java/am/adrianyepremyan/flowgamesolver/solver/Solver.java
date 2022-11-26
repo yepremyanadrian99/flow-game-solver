@@ -38,7 +38,7 @@ public class Solver {
         final int startX = initialFlow.first().x();
         final int startY = initialFlow.first().y();
 
-        scheduler = Schedulers.boundedElastic();
+        scheduler = Schedulers.single();
         final var solvedMatrix = solveRecursively(map, matrix, matrix[startY][startX], initialFlowList, 0)
             .subscribeOn(scheduler)
             .block();
@@ -141,8 +141,11 @@ public class Solver {
     }
 
     private boolean gameHasNoSolution(GameMap map, Flow[][] matrix) {
-        for (final var initialFlow : map.getInitialFlowList()) {
-            if (isCellBlocked(initialFlow.first(), matrix) || isCellBlocked(initialFlow.second(), matrix)) {
+        for (final var initialFlowPair : map.getInitialFlowList()) {
+//            if (isCellBlocked(initialFlowPair.first(), matrix) || isCellBlocked(initialFlowPair.second(), matrix)) {
+//                return true;
+//            }
+            if (flowsHaveNoConnection(matrix, initialFlowPair.first(), initialFlowPair.second())) {
                 return true;
             }
         }
@@ -164,6 +167,50 @@ public class Solver {
                 return !matrix[y][x].color().equals(flowColor);
             }
             return false;
+        }
+
+        // If x and y are invalid, then there's no way for the flow to move
+        return true;
+    }
+
+    private boolean flowsHaveNoConnection(Flow[][] matrix, Flow start, Flow end) {
+        final var visited = new Boolean[matrix.length][matrix[0].length];
+        return flowsHaveNoConnectionRecursive(matrix, visited, start.x(), start.y(), end);
+    }
+
+    private boolean flowsHaveNoConnectionRecursive(Flow[][] matrix,
+                                                   Boolean[][] visited,
+                                                   int x, int y,
+                                                   Flow destination) {
+        // Destination flow is reached
+        if (x == destination.x() && y == destination.y()) {
+//            System.out.println("Destination flow is reached");
+            return false;
+        }
+
+        if (y >= 0 && y < matrix.length && x >= 0 && x < matrix[y].length) {
+//            System.out.println("X: " + x + " and Y: " + y + " are valid");
+            // If the cell has already been traversed, then cancel the traversal
+            if (visited[y][x] != null) {
+                return true;
+            }
+
+            visited[y][x] = true;
+            // If the cell is blocked with another color, then cancel the traversal
+            if (matrix[y][x] != null && !matrix[y][x].color().equals(destination.color())) {
+//                System.out.println(matrix[y][x].color() + " is not equal to " + destination.color() + ", cancelling");
+                return true;
+            }
+
+//            System.out.println("Continuing traversal in the following directions...\n"
+//                + "up: X: " + x + " Y: " + (y - 1) + "\n"
+//                + "down: X: " + x + " Y: " + (y + 1) + "\n"
+//                + "left: X: " + (x - 1) + " Y: " + y + "\n"
+//                + "right: X: " + (x + 1) + " Y: " + y + "\n");
+            return flowsHaveNoConnectionRecursive(matrix, visited, x, y - 1, destination)
+                && flowsHaveNoConnectionRecursive(matrix, visited, x, y + 1, destination)
+                && flowsHaveNoConnectionRecursive(matrix, visited, x - 1, y, destination)
+                && flowsHaveNoConnectionRecursive(matrix, visited, x + 1, y, destination);
         }
 
         // If x and y are invalid, then there's no way for the flow to move

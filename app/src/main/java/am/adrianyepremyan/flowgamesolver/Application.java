@@ -9,10 +9,10 @@ import java.util.function.Supplier;
 public class Application {
 
     public static void main(String[] args) {
-        solveAndPrint(Application::mapExample5x5);
-        solveAndPrint(Application::mapExample7x7);
-        solveAndPrint(Application::mapExample8x8);
-//        solveAndPrint(Application::mapExample10x10);
+//        solveAndPrint(Application::mapExample5x5);
+//        solveAndPrint(Application::mapExample7x7);
+//        solveAndPrint(Application::mapExample8x8);
+        solveAndPrint(Application::mapExample10x10);
     }
 
     private static void solveAndPrint(Supplier<GameMap> mapSupplier) {
