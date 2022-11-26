@@ -28,12 +28,10 @@ public class Solver {
 
     private static Scheduler scheduler;
 
-    // TODO: Within a separate thread, print the initialFlowIndex with, e.g. 5 seconds delay.
     public Flow[][] solve(GameMap map) {
         final var matrix = map.getMatrix();
         final var initialFlowList = new ArrayList<>(map.getInitialFlowList());
-        // 8x8 map takes longer to be solved with the initial sort
-//        sortInitialFlowListByShortestDistance(initialFlowList);
+        sortInitialFlowListByShortestDistance(initialFlowList);
         final var initialFlow = initialFlowList.get(0);
         final int startX = initialFlow.first().x();
         final int startY = initialFlow.first().y();
