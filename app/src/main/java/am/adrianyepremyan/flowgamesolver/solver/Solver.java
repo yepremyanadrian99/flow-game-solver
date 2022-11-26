@@ -10,8 +10,6 @@ import am.adrianyepremyan.flowgamesolver.helper.Point;
 import am.adrianyepremyan.flowgamesolver.map.GameMap;
 import am.adrianyepremyan.flowgamesolver.map.domain.Flow;
 import am.adrianyepremyan.flowgamesolver.map.domain.FlowDirection;
-import am.adrianyepremyan.flowgamesolver.map.printer.DefaultGameMapPrinter;
-import am.adrianyepremyan.flowgamesolver.map.printer.GameMapPrinter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -21,8 +19,6 @@ import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
 public class Solver {
-
-    private static final GameMapPrinter printer = new DefaultGameMapPrinter();
 
     private static final Flow[][] NIL = new Flow[0][0];
 
@@ -36,7 +32,7 @@ public class Solver {
         final int startX = initialFlow.first().x();
         final int startY = initialFlow.first().y();
 
-        scheduler = Schedulers.single();
+        scheduler = Schedulers.boundedElastic();
         final var solvedMatrix = solveRecursively(map, matrix, matrix[startY][startX], initialFlowList, 0)
             .subscribeOn(scheduler)
             .block();
@@ -63,21 +59,15 @@ public class Solver {
                 solveWithDirection(map, matrix, flow, initialFlowList, initialFlowIndex, startX - 1, startY, LEFT),
                 solveWithDirection(map, matrix, flow, initialFlowList, initialFlowIndex, startX + 1, startY, RIGHT)
             )
-            .map(tuple -> {
-                    final var result = Stream.of(
-                            tuple.getT1(),
-                            tuple.getT2(),
-                            tuple.getT3(),
-                            tuple.getT4()
-                        )
-                        .filter(currResult -> currResult != NIL)
-                        .findFirst()
-                        .orElse(NIL);
-//                    System.out.println(Thread.currentThread().getName()
-//                        + " : " + "All results complete: " + (result != NIL));
-                    return result;
-                }
-            );
+            .map(tuple -> Stream.of(
+                    tuple.getT1(),
+                    tuple.getT2(),
+                    tuple.getT3(),
+                    tuple.getT4()
+                )
+                .filter(currResult -> currResult != NIL)
+                .findFirst()
+                .orElse(NIL));
     }
 
     private Mono<Flow[][]> solveWithDirection(GameMap map,
@@ -115,8 +105,6 @@ public class Solver {
             if (insertedFlow != null) {
                 // Stop to backtrack if after flow insertion the game can't have any solution
                 if (gameHasNoSolution(map, tempMatrix)) {
-//                    System.out.println("Game can't have solution in this case for inserted flow: " + insertedFlow);
-//                    printer.print(tempMatrix);
                     return Mono.just(NIL);
                 }
                 // Solve recursively with the new flow
@@ -124,6 +112,7 @@ public class Solver {
                     .subscribeOn(scheduler);
             }
         }
+
         return Mono.just(NIL);
     }
 
@@ -140,9 +129,11 @@ public class Solver {
 
     private boolean gameHasNoSolution(GameMap map, Flow[][] matrix) {
         for (final var initialFlowPair : map.getInitialFlowList()) {
-//            if (isCellBlocked(initialFlowPair.first(), matrix) || isCellBlocked(initialFlowPair.second(), matrix)) {
-//                return true;
-//            }
+            // This is a quick check if adjacent cells are blocked or not
+            if (isCellBlocked(initialFlowPair.first(), matrix) || isCellBlocked(initialFlowPair.second(), matrix)) {
+                return true;
+            }
+            // This is a more thorough check if there is still a path between two flows
             if (flowsHaveNoConnection(matrix, initialFlowPair.first(), initialFlowPair.second())) {
                 return true;
             }
@@ -182,12 +173,10 @@ public class Solver {
                                                    Flow destination) {
         // Destination flow is reached
         if (x == destination.x() && y == destination.y()) {
-//            System.out.println("Destination flow is reached");
             return false;
         }
 
         if (y >= 0 && y < matrix.length && x >= 0 && x < matrix[y].length) {
-//            System.out.println("X: " + x + " and Y: " + y + " are valid");
             // If the cell has already been traversed, then cancel the traversal
             if (visited[y][x] != null) {
                 return true;
@@ -196,15 +185,9 @@ public class Solver {
             visited[y][x] = true;
             // If the cell is blocked with another color, then cancel the traversal
             if (matrix[y][x] != null && !matrix[y][x].color().equals(destination.color())) {
-//                System.out.println(matrix[y][x].color() + " is not equal to " + destination.color() + ", cancelling");
                 return true;
             }
 
-//            System.out.println("Continuing traversal in the following directions...\n"
-//                + "up: X: " + x + " Y: " + (y - 1) + "\n"
-//                + "down: X: " + x + " Y: " + (y + 1) + "\n"
-//                + "left: X: " + (x - 1) + " Y: " + y + "\n"
-//                + "right: X: " + (x + 1) + " Y: " + y + "\n");
             return flowsHaveNoConnectionRecursive(matrix, visited, x, y - 1, destination)
                 && flowsHaveNoConnectionRecursive(matrix, visited, x, y + 1, destination)
                 && flowsHaveNoConnectionRecursive(matrix, visited, x - 1, y, destination)
