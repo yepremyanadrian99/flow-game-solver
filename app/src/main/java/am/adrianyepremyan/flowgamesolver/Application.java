@@ -13,6 +13,7 @@ public class Application {
         solveAndPrint(Application::mapExample7x7);
         solveAndPrint(Application::mapExample8x8);
         solveAndPrint(Application::mapExample10x10);
+//        solveAndPrint(Application::mapExample14x14);
     }
 
     private static void solveAndPrint(Supplier<GameMap> mapSupplier) {
@@ -76,6 +77,26 @@ public class Application {
         map.addInitialFlows("White", new Point(1, 7), new Point(3, 7));
         map.addInitialFlows("Pink", new Point(0, 9), new Point(7, 3));
         map.addInitialFlows("Blue", new Point(4, 5), new Point(9, 9));
+        return map;
+    }
+
+    private static GameMap mapExample14x14() {
+        final var map = new GameMap(14, 14);
+        map.addInitialFlows("Red", new Point(1, 2), new Point(7, 1));
+        map.addInitialFlows("Orange", new Point(1, 3), new Point(8, 1));
+        map.addInitialFlows("Blue", new Point(7, 5), new Point(6, 7));
+        map.addInitialFlows("Xuy ego kaput", new Point(9, 7), new Point(9, 1));
+        map.addInitialFlows("Pink", new Point(1, 4), new Point(4, 3));
+        map.addInitialFlows("Qaqot", new Point(0, 5), new Point(7, 11));
+        map.addInitialFlows("Fioletovi", new Point(7, 4), new Point(1, 9));
+        map.addInitialFlows("White", new Point(2, 11), new Point(5, 8));
+        map.addInitialFlows("Kanach", new Point(10, 2), new Point(11, 12));
+        map.addInitialFlows("Cyan", new Point(5, 11), new Point(8, 13));
+        map.addInitialFlows("Lime", new Point(8, 8), new Point(7, 13));
+        map.addInitialFlows("Yellow", new Point(11, 4), new Point(10, 12));
+        map.addInitialFlows("Gray", new Point(11, 2), new Point(6, 11));
+        map.addInitialFlows("Indigo", new Point(5, 7), new Point(6, 8));
+        map.addInitialFlows("Aztec", new Point(7, 7), new Point(9, 8));
         return map;
     }
 }
