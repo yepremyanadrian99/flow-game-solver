@@ -17,14 +17,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
 public class ReactiveSolution implements Solution {
 
     private static final Flow[][] NIL = new Flow[0][0];
-
-    private Scheduler scheduler;
 
     public Flow[][] apply(GameMap map) {
         final var matrix = map.getMatrix();
@@ -34,11 +31,9 @@ public class ReactiveSolution implements Solution {
         final int startX = initialFlow.first().x();
         final int startY = initialFlow.first().y();
 
-        scheduler = Schedulers.boundedElastic();
         final var solvedMatrix = solveRecursively(map, matrix, matrix[startY][startX], initialFlowList, 0)
-            .subscribeOn(scheduler)
+            .subscribeOn(Schedulers.boundedElastic())
             .block();
-        scheduler.dispose();
 
         if (solvedMatrix == NIL) {
             throw new RuntimeException("Game has no solution!");
@@ -94,8 +89,7 @@ public class ReactiveSolution implements Solution {
             final var nextFlow = matrix[nextInitialFlow.first().y()][nextInitialFlow.first().x()];
 
             // Solve recursively for next colored flow
-            return solveRecursively(map, matrix, nextFlow, initialFlowList, initialFlowIndex + 1)
-                .subscribeOn(scheduler);
+            return solveRecursively(map, matrix, nextFlow, initialFlowList, initialFlowIndex + 1);
         }
 
         if ((currentFlow.direction() == null || directionToGo != currentFlow.direction().getOpposite())
@@ -110,8 +104,7 @@ public class ReactiveSolution implements Solution {
                     return Mono.just(NIL);
                 }
                 // Solve recursively with the new flow
-                return solveRecursively(map, tempMatrix, insertedFlow, initialFlowList, initialFlowIndex)
-                    .subscribeOn(scheduler);
+                return solveRecursively(map, tempMatrix, insertedFlow, initialFlowList, initialFlowIndex);
             }
         }
 
