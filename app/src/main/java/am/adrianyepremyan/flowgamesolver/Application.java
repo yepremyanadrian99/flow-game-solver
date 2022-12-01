@@ -3,18 +3,30 @@ package am.adrianyepremyan.flowgamesolver;
 import am.adrianyepremyan.flowgamesolver.helper.Point;
 import am.adrianyepremyan.flowgamesolver.map.GameMap;
 import am.adrianyepremyan.flowgamesolver.map.printer.DefaultGameMapPrinter;
-import am.adrianyepremyan.flowgamesolver.solver.ReactiveSolution;
+import am.adrianyepremyan.flowgamesolver.solver.SingleThreadedSolution;
 import am.adrianyepremyan.flowgamesolver.solver.Solver;
+import java.util.Date;
 import java.util.function.Supplier;
 
 public class Application {
 
     public static void main(String[] args) {
-        solveAndPrint(Application::mapExample5x5);
-        solveAndPrint(Application::mapExample7x7);
-        solveAndPrint(Application::mapExample8x8);
-        solveAndPrint(Application::mapExample10x10);
-//        solveAndPrint(Application::mapExample14x14);
+        testSolution(100);
+    }
+
+    private static void testSolution(int iterations) {
+        long averageTime = 0;
+        for (int i = 0; i < iterations; ++i) {
+            long start = new Date().getTime();
+//            solveAndPrint(Application::mapExample5x5);
+//            solveAndPrint(Application::mapExample7x7);
+            solveAndPrint(Application::mapExample8x8);
+//            solveAndPrint(Application::mapExample10x10);
+            long end = new Date().getTime();
+            averageTime += end - start;
+        }
+        averageTime /= iterations;
+        System.out.println("Average time spent: " + averageTime + " millis");
     }
 
     private static void solveAndPrint(Supplier<GameMap> mapSupplier) {
@@ -25,7 +37,7 @@ public class Application {
         map.print(mapPrinter);
 
         final var solver = new Solver();
-        final var solvedMatrix = solver.solve(map, new ReactiveSolution());
+        final var solvedMatrix = solver.solve(map, new SingleThreadedSolution());
 
         System.out.println("Solution:");
         mapPrinter.print(solvedMatrix);

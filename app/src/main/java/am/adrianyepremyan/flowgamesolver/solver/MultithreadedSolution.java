@@ -1,4 +1,126 @@
 package am.adrianyepremyan.flowgamesolver.solver;
 
-public class MultithreadedSolution {
+import static am.adrianyepremyan.flowgamesolver.helper.GameUtils.copyMatrix;
+import static am.adrianyepremyan.flowgamesolver.helper.GameUtils.gameHasNoSolution;
+import static am.adrianyepremyan.flowgamesolver.helper.GameUtils.insertFlowWithDirection;
+import static am.adrianyepremyan.flowgamesolver.helper.GameUtils.sortInitialFlowListByShortestDistance;
+import static am.adrianyepremyan.flowgamesolver.map.domain.FlowDirection.DOWN;
+import static am.adrianyepremyan.flowgamesolver.map.domain.FlowDirection.LEFT;
+import static am.adrianyepremyan.flowgamesolver.map.domain.FlowDirection.RIGHT;
+import static am.adrianyepremyan.flowgamesolver.map.domain.FlowDirection.UP;
+
+import am.adrianyepremyan.flowgamesolver.helper.Pair;
+import am.adrianyepremyan.flowgamesolver.map.GameMap;
+import am.adrianyepremyan.flowgamesolver.map.domain.Flow;
+import am.adrianyepremyan.flowgamesolver.map.domain.FlowDirection;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.stream.Stream;
+
+public class MultithreadedSolution implements Solution {
+
+    private final ExecutorService es = Executors.newCachedThreadPool();
+
+    public Flow[][] apply(GameMap map) {
+        final var matrix = map.getMatrix();
+        final var initialFlowList = new ArrayList<>(map.getInitialFlowList());
+        sortInitialFlowListByShortestDistance(initialFlowList);
+        final var initialFlow = initialFlowList.get(0);
+        final int startX = initialFlow.first().x();
+        final int startY = initialFlow.first().y();
+
+        final Flow[][] solvedMatrix;
+        try {
+            solvedMatrix = solveRecursively(map, matrix, matrix[startY][startX], initialFlowList, 0);
+
+            if (solvedMatrix == null) {
+                throw new RuntimeException("Game has no solution!");
+            }
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Solution was interrupted");
+        }
+        return solvedMatrix;
+    }
+
+    private Flow[][] solveRecursively(GameMap map,
+                                      Flow[][] matrix,
+                                      Flow flow,
+                                      List<Pair<Flow, Flow>> initialFlowList,
+                                      int initialFlowIndex) throws InterruptedException, ExecutionException {
+        final int startX = flow.point().x();
+        final int startY = flow.point().y();
+
+        final var upFuture = es.submit(
+            () -> solveWithDirection(map, matrix, flow, initialFlowList, initialFlowIndex, startX, startY - 1, UP)
+        );
+        final var downFuture = es.submit(
+            () -> solveWithDirection(map, matrix, flow, initialFlowList, initialFlowIndex, startX, startY + 1, DOWN)
+        );
+        final var leftFuture = es.submit(
+            () -> solveWithDirection(map, matrix, flow, initialFlowList, initialFlowIndex, startX - 1, startY, LEFT)
+        );
+        final var rightFuture = es.submit(
+            () -> solveWithDirection(map, matrix, flow, initialFlowList, initialFlowIndex, startX + 1, startY, RIGHT)
+        );
+
+        upFuture.wait();
+
+        return Stream.of(
+                upFuture.get(),
+                downFuture.get(),
+                leftFuture.get(),
+                rightFuture.get()
+            )
+            .filter(Objects::nonNull)
+            .findFirst()
+            .orElse(null);
+    }
+
+    private Flow[][] solveWithDirection(GameMap map,
+                                        Flow[][] matrix,
+                                        Flow currentFlow,
+                                        List<Pair<Flow, Flow>> initialFlowList,
+                                        int initialFlowIndex,
+                                        int x, int y,
+                                        FlowDirection directionToGo) throws InterruptedException, ExecutionException {
+        final var initialFlow = initialFlowList.get(initialFlowIndex);
+
+        // If the end of the initial flow is reached
+        // Change the initial flow
+        if (initialFlow.second().x() == x && initialFlow.second().y() == y) {
+            // If the end of all initial flows is reached
+            // The game is solved
+            if (initialFlowIndex == initialFlowList.size() - 1) {
+                return matrix;
+            }
+
+            final var nextInitialFlow = initialFlowList.get(initialFlowIndex + 1);
+            final var nextFlow = matrix[nextInitialFlow.first().y()][nextInitialFlow.first().x()];
+
+            // Solve recursively for next colored flow
+            return solveRecursively(map, matrix, nextFlow, initialFlowList, initialFlowIndex + 1);
+        }
+
+        if ((currentFlow.direction() == null || directionToGo != currentFlow.direction().getOpposite())
+            && y >= 0 && y < matrix.length
+            && x >= 0 && x < matrix[y].length) {
+            // Insert the new flow with the provided direction
+            final var tempMatrix = copyMatrix(matrix);
+            final var insertedFlow = insertFlowWithDirection(tempMatrix, x, y, currentFlow.color(), directionToGo);
+            if (insertedFlow != null) {
+                // Stop to backtrack if after flow insertion the game can't have any solution
+                if (gameHasNoSolution(map, tempMatrix)) {
+                    return null;
+                }
+                // Solve recursively with the new flow
+                return solveRecursively(map, tempMatrix, insertedFlow, initialFlowList, initialFlowIndex);
+            }
+        }
+
+        return null;
+    }
 }
