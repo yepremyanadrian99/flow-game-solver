@@ -21,7 +21,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Stream;
 
-public class MultithreadedSolution implements Solution {
+public class MultiThreadedSolution implements Solution {
 
     private final ExecutorService es = Executors.newCachedThreadPool();
 
