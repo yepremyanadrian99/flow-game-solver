@@ -15,7 +15,7 @@ import am.adrianyepremyan.flowgamesolver.map.domain.Flow;
 import am.adrianyepremyan.flowgamesolver.map.domain.FlowDirection;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Stream;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
@@ -50,21 +50,15 @@ public class ReactiveSolution implements Solution {
         final int startX = flow.point().x();
         final int startY = flow.point().y();
 
-        return Mono.zip(
+        return Flux.merge(
                 solveWithDirection(map, matrix, flow, initialFlowList, initialFlowIndex, startX, startY - 1, UP),
                 solveWithDirection(map, matrix, flow, initialFlowList, initialFlowIndex, startX, startY + 1, DOWN),
                 solveWithDirection(map, matrix, flow, initialFlowList, initialFlowIndex, startX - 1, startY, LEFT),
                 solveWithDirection(map, matrix, flow, initialFlowList, initialFlowIndex, startX + 1, startY, RIGHT)
             )
-            .map(tuple -> Stream.of(
-                    tuple.getT1(),
-                    tuple.getT2(),
-                    tuple.getT3(),
-                    tuple.getT4()
-                )
-                .filter(currResult -> currResult != NIL)
-                .findFirst()
-                .orElse(NIL));
+            .filter(currResult -> currResult != NIL)
+            .next()
+            .defaultIfEmpty(NIL);
     }
 
     private Mono<Flow[][]> solveWithDirection(GameMap map,

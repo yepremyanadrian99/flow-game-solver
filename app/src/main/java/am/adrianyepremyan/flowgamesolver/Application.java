@@ -3,7 +3,7 @@ package am.adrianyepremyan.flowgamesolver;
 import am.adrianyepremyan.flowgamesolver.helper.Point;
 import am.adrianyepremyan.flowgamesolver.map.GameMap;
 import am.adrianyepremyan.flowgamesolver.map.printer.DefaultGameMapPrinter;
-import am.adrianyepremyan.flowgamesolver.solver.SingleThreadedSolution;
+import am.adrianyepremyan.flowgamesolver.solver.ReactiveSolution;
 import am.adrianyepremyan.flowgamesolver.solver.Solver;
 import java.util.Date;
 import java.util.function.Supplier;
@@ -37,7 +37,7 @@ public class Application {
         map.print(mapPrinter);
 
         final var solver = new Solver();
-        final var solvedMatrix = solver.solve(map, new SingleThreadedSolution());
+        final var solvedMatrix = solver.solve(map, new ReactiveSolution());
 
         System.out.println("Solution:");
         mapPrinter.print(solvedMatrix);
